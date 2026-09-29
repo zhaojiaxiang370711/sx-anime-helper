@@ -14,7 +14,7 @@ from .constants import (
     SKIN_EDGE_RAMP_NAME,
     SKIN_MATCAP_ADD_NAME,
 )
-from .utils import find_principled_bsdf, ensure_two_color_ramp, log
+from .utils import find_material_output, find_principled_bsdf, ensure_two_color_ramp, log
 
 
 # ---------- 描边 ----------
@@ -194,8 +194,35 @@ def _ensure_node(node_tree, node_type: str, name: str, location):
     return node
 
 
-def _prepare_original_color_source(node_tree, bsdf):
-    base_input = bsdf.inputs.get("Base Color")
+def _find_target_socket(node_tree):
+    """返回卡通链要注入的输入插口。
+
+    优先：与材质输出相连的 Principled BSDF 的 Base Color；
+    其次：与材质输出相连的着色器组（如 MMD 的 MMDShaderDev）的
+    Base Tex / Base Color 输入——MMD 材质的贴图从这里进组，
+    顶层的 Principled 只是悬空占位节点，不能往那里注入；
+    最后兜底：任意 Principled 的 Base Color。
+    """
+    out = find_material_output(node_tree)
+    if out and out.inputs.get("Surface") and out.inputs["Surface"].is_linked:
+        from_node = out.inputs["Surface"].links[0].from_node
+        if from_node.type == 'BSDF_PRINCIPLED':
+            return from_node.inputs.get("Base Color")
+        if from_node.bl_idname == 'ShaderNodeGroup' and from_node.node_tree:
+            for sock in from_node.inputs:
+                if not sock.is_linked:
+                    continue
+                low = sock.name.lower()
+                if any(k in low for k in ('base tex', 'base color', 'base_color')):
+                    return sock
+            return None
+    bsdf = find_principled_bsdf(node_tree)
+    if bsdf is not None:
+        return bsdf.inputs.get("Base Color")
+    return None
+
+
+def _prepare_original_color_source(node_tree, base_input):
     if base_input is None:
         return None
 
@@ -209,7 +236,7 @@ def _prepare_original_color_source(node_tree, bsdf):
         reroute.label = TAG
         reroute["sx_skin_node"] = True
 
-    # 已经存在原始颜色缓存时，保留它，只断开当前 Base Color 链接即可。
+    # 已经存在原始颜色缓存时，保留它，只断开当前目标插口链接即可。
     if reroute.inputs[0].is_linked:
         for link in list(base_input.links):
             node_tree.links.remove(link)
@@ -236,16 +263,16 @@ def apply_highlight_skin(mat: bpy.types.Material, mix_factor: float, glossy_roug
 
     node_tree = mat.node_tree
     links = node_tree.links
-    bsdf = find_principled_bsdf(node_tree)
-    if bsdf is None:
+    target_socket = _find_target_socket(node_tree)
+    if target_socket is None:
         return False
 
-    reroute = _prepare_original_color_source(node_tree, bsdf)
+    reroute = _prepare_original_color_source(node_tree, target_socket)
     if reroute is None:
         return False
 
     _remove_tagged_nodes(node_tree, remove_reroute=False)
-    reroute = _prepare_original_color_source(node_tree, bsdf)
+    reroute = _prepare_original_color_source(node_tree, target_socket)
 
     diffuse = _ensure_node(node_tree, 'ShaderNodeBsdfDiffuse', 'SX_Diffuse', (-820, 240))
     shader_to_rgb = _ensure_node(node_tree, 'ShaderNodeShaderToRGB', 'SX_S2R_Diffuse', (-620, 240))
@@ -362,7 +389,7 @@ def apply_highlight_skin(mat: bpy.types.Material, mix_factor: float, glossy_roug
 
     links.new(reroute.outputs[0], final_mix.inputs['Color1'])
     links.new(stylized_color, final_mix.inputs['Color2'])
-    links.new(final_mix.outputs['Color'], bsdf.inputs['Base Color'])
+    links.new(final_mix.outputs['Color'], target_socket)
 
     mat['sx_skin_enabled'] = True
     return True
@@ -373,13 +400,9 @@ def remove_highlight_skin(mat: bpy.types.Material) -> bool:
         return False
 
     node_tree = mat.node_tree
-    bsdf = find_principled_bsdf(node_tree)
+    base_input = _find_target_socket(node_tree)
     reroute = node_tree.nodes.get(SKIN_REROUTE_NAME)
-    if bsdf is None or reroute is None:
-        return False
-
-    base_input = bsdf.inputs.get('Base Color')
-    if base_input is None:
+    if base_input is None or reroute is None:
         return False
 
     for link in list(base_input.links):

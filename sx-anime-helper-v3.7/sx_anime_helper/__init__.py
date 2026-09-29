@@ -2,7 +2,7 @@
 bl_info = {
     "name": "SX Anime Helper",
     "author": "Paper朱 + ChatGPT",
-    "version": (3, 7, 0),
+    "version": (3, 7, 1),
     "blender": (4, 1, 0),
     "location": "View3D / Shader Editor N panel: SX Anime; Material properties: SX Anime Skin Highlight",
     "description": "One-click outline (adjustable/fix/remove) + toon highlight skin (Matcap) + per-slot processing + color management + one-click glow",
