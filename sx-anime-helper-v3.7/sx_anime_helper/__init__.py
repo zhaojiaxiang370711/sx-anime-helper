@@ -1,41 +1,47 @@
+# Paper said：ciallo
 bl_info = {
-    "name": "Paper朱二次元助手（强化版）",
+    "name": "SX Anime Helper",
     "author": "Paper朱 + ChatGPT",
-    "version": (3, 1, 0),
-    "blender": (5, 0, 1),
-    "location": "View3D / Shader Editor N 面板：Paper二分；材质属性面板：Paper朱 高光皮肤材质",
-    "description": "一键描边 + 高光皮肤（Skin_shiny风格）+ 单材质槽处理 + Matcap + 色彩管理",
+    "version": (3, 7, 0),
+    "blender": (4, 1, 0),
+    "location": "View3D / Shader Editor N panel: SX Anime; Material properties: SX Anime Skin Highlight",
+    "description": "One-click outline (adjustable/fix/remove) + toon highlight skin (Matcap) + per-slot processing + color management + one-click glow",
     "category": "Material",
 }
 
 import importlib
 from . import (
-    props,
-    utils_engine,
     constants,
+    utils,
     materials,
+    compositor,
+    props,
     ops_outline,
     ops_color,
     ops_skin,
     ops_slot_replace,
+    ops_glow,
     ui_view3d,
     ui_shader,
     ui_material_panel,
 )
 
 modules = (
-    props,
-    utils_engine,
     constants,
+    utils,
     materials,
+    compositor,
+    props,
     ops_outline,
     ops_color,
     ops_skin,
     ops_slot_replace,
+    ops_glow,
     ui_view3d,
     ui_shader,
     ui_material_panel,
 )
+
 
 def register():
     for m in modules:
@@ -43,6 +49,7 @@ def register():
     for m in modules:
         if hasattr(m, "register"):
             m.register()
+
 
 def unregister():
     for m in reversed(modules):

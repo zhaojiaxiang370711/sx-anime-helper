@@ -2,9 +2,10 @@
 import bpy
 from bpy.types import Panel
 
-class PAPERZHU_PT_material(Panel):
-    bl_label = "Paper朱 高光皮肤材质"
-    bl_idname = "PAPERZHU_PT_material"
+
+class SX_PT_material(Panel):
+    bl_label = "SX Anime Skin Highlight"
+    bl_idname = "SX_PT_material"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "material"
@@ -16,15 +17,19 @@ class PAPERZHU_PT_material(Panel):
 
     def draw(self, context):
         layout = self.layout
-        s = context.scene.paperzhu_settings
+        s = context.scene.sx_anime_settings
         layout.prop(s, "toon_mix", slider=True)
-        layout.operator("paperzhu.skin_active", icon='NODE_MATERIAL')
+        layout.prop(s, "skin_roughness", slider=True)
+        layout.operator("sx_anime.skin_active", icon='NODE_MATERIAL')
 
-CLASSES = (PAPERZHU_PT_material,)
+
+CLASSES = (SX_PT_material,)
+
 
 def register():
     for c in CLASSES:
         bpy.utils.register_class(c)
+
 
 def unregister():
     for c in reversed(CLASSES):
